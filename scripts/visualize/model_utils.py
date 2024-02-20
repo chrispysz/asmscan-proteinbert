@@ -18,19 +18,19 @@ def load_models_from_directory():
         models.append(model)
     return models
 
-def calculate_relative_position(sequence_length, max_position_index):
-    """Calculates the relative position of the max prediction."""
+def calculate_relative_positions(sequence_length, start_index):
+    """Generates a list of relative positions for each point in the 40-position window."""
     if sequence_length <= SEQUENCE_CUTOFF:
-        return 0
-    relative_position = (max_position_index + 20) / sequence_length
-    return int(relative_position*100)
+        return []
+    relative_positions = [(start_index + i + 1) / sequence_length * 100 for i in range(40)]
+    return relative_positions
 
 
 def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, batch_size=32):
     """Predicts model output for a window in the sequence and return list of predictions."""
     all_embeddings = []
     sequence_labels = []
-    relative_positions = []
+    all_relative_positions = []
 
     dataset_label = dataset_path.split('/')[-1]
     dataset_label = dataset_label[:-4]
@@ -38,6 +38,7 @@ def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, 
     for i in tqdm(range(0, len(sequences), batch_size)):
         batch_sequences = sequences[i:i+batch_size]
         for seq in batch_sequences:
+            sequence_labels.append(dataset_label)
             seq_predictions = {}
             seq_embeddings = {}
 
@@ -54,17 +55,19 @@ def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, 
             avg_predictions = np.mean(list(seq_predictions.values()), axis=0)
             max_pred_index = np.argmax(avg_predictions)
 
-            relative_position = calculate_relative_position(len(seq), max_pred_index)
+            positions = calculate_relative_positions(len(seq), max_pred_index)
             
-            if relative_position != 0:
-                relative_positions.append(calculate_relative_position(len(seq), max_pred_index))
+            if len(positions) > 0:
+                all_relative_positions.extend(positions)
 
-            
+            max_embeddings = []
             for model in models:
-                sequence_labels.append(dataset_label)
+            
             
                 embedding = seq_embeddings[model][max_pred_index]
-                all_embeddings.append(np.array(embedding))
+                max_embeddings.extend(embedding)
+                
+            all_embeddings.append(max_embeddings)
 
-    return all_embeddings, sequence_labels, relative_positions
+    return all_embeddings, sequence_labels, all_relative_positions
                 

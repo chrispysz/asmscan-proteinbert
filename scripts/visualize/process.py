@@ -27,13 +27,14 @@ def main():
         unique_labels.add(dataset)
 
         if len(relative_positions) > 0:
-            plt.hist(relative_positions, bins=range(1, 121, 20), edgecolor='black')
+            bins = range(0, 101, 2)
+            plt.hist(relative_positions, bins=bins, edgecolor='black')
             plt.title(dataset[:-4])
             plt.xlabel('Position in Sequence (%)')
             plt.ylabel('Frequency')
 
             # Save the histogram to a file
-            histogram_path = './results/histograms/'+dataset[:-4]+'.png'
+            histogram_path = './results/histograms/' + dataset[:-4] + '.png'
             plt.savefig(histogram_path)
 
             # Clear the plot data to avoid duplication in further plots
@@ -46,7 +47,7 @@ def main():
         x=[x[0] for x in tsne_embeddings],
         y=[x[1] for x in tsne_embeddings],
         hue=sequence_labels,
-        s=9
+        s=10
     )
     plt.title("Combined t-SNE")
     plt.xlabel("1")
@@ -55,6 +56,9 @@ def main():
     plt.xticks([], [])
     plt.yticks([], [])
     plt.legend(loc='upper right')
+    plot_path = './results/tsne/' + '_'.join(os.listdir(DATA_PATH)) + '.png'
+    plt.savefig(plot_path)
+
     plt.show()
 
 if __name__ == "__main__":
