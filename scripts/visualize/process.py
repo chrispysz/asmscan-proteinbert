@@ -5,7 +5,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
 from config import DATA_PATH, SEQUENCE_CUTOFF
-from preprocessing import load_data
+from preprocessing import parse_fasta
 from model_utils import load_models_from_directory, predict_window
 
 tf.get_logger().setLevel('ERROR')
@@ -14,27 +14,33 @@ def main():
     tsne_model = TSNE(n_components=2, verbose=1, random_state=42)
     sequence_labels = []
     sequence_embeddings = []
+    all_values = []
 
     unique_labels = set()
 
     models = load_models_from_directory()
     for dataset in os.listdir(DATA_PATH):
-        sequences = load_data(DATA_PATH + dataset)
-        embeddings, labels, relative_positions = predict_window(sequences, models, dataset, SEQUENCE_CUTOFF)
+        sequences = parse_fasta(DATA_PATH + dataset)
+        embeddings, labels, coverage, values = predict_window(sequences, models, dataset, SEQUENCE_CUTOFF)
         sequence_embeddings.append(embeddings)
         sequence_labels.extend(labels)
+        all_values.extend(values)
 
         unique_labels.add(dataset)
+        print(f"Dataset: {dataset}")
+    
+        if "bass_ntm_domain" in dataset or "fass_ntm_domain" in dataset:
+            print("Mean, Std, Min, Max:")
+            print(np.mean(coverage), np.std(coverage), np.min(coverage), np.max(coverage))
 
-        if len(relative_positions) > 0:
-            bins = range(0, 101, 2)
-            plt.hist(relative_positions, bins=bins, edgecolor='black')
-            plt.title(dataset[:-4])
-            plt.xlabel('Position in Sequence (%)')
-            plt.ylabel('Frequency')
+
+            plt.violinplot(coverage)
+            plt.title(dataset[:-3])
+            plt.ylabel('Coverage')
+            plt.yticks(np.arange(0, 1.1, step=0.1))
 
             # Save the histogram to a file
-            histogram_path = './results/histograms/' + dataset[:-4] + '.png'
+            histogram_path = './results/violin_plots/' + dataset[:-3] + '.pdf'
             plt.savefig(histogram_path)
 
             # Clear the plot data to avoid duplication in further plots
@@ -47,7 +53,7 @@ def main():
         x=[x[0] for x in tsne_embeddings],
         y=[x[1] for x in tsne_embeddings],
         hue=sequence_labels,
-        s=10
+        size=all_values
     )
     plt.title("Combined t-SNE")
     plt.xlabel("1")
@@ -56,7 +62,7 @@ def main():
     plt.xticks([], [])
     plt.yticks([], [])
     plt.legend(loc='upper right')
-    plot_path = './results/tsne/' + '_'.join(os.listdir(DATA_PATH)) + '.png'
+    plot_path = './results/tsne/' + '_'.join(os.listdir(DATA_PATH)) + '.pdf'
     plt.savefig(plot_path)
 
     plt.show()

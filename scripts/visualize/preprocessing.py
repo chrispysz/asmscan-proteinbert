@@ -25,8 +25,20 @@ def tokenize_sequences(seqs, seq_len):
     """Converts list of sequences into array of token indices."""
     return np.array([seq_tokens + (seq_len - len(seq_tokens)) * [special_token_to_index['<PAD>']] for seq_tokens in map(tokenize_sequence, seqs)], dtype=np.int32)
 
-def load_data(data_path):
-    """Loads sequences from a CSV file."""
-    df = pd.read_csv(data_path)
-    sequences = df['seq']
+def parse_fasta(data_path):
+    sequences = {}
+    with open(data_path, 'r') as file:
+        sequence_id = None
+        sequence = []
+        for line in file:
+            line = line.strip()
+            if line.startswith('>'):
+                if sequence_id is not None:
+                    sequences[sequence_id] = ''.join(sequence)
+                sequence_id = line
+                sequence = []
+            else:
+                sequence.append(line)
+        if sequence_id is not None:
+            sequences[sequence_id] = ''.join(sequence)
     return sequences

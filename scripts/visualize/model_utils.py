@@ -5,6 +5,17 @@ from preprocessing import tokenize_sequences
 from config import MODEL_PATH, SEQUENCE_LENGTH, SEQUENCE_CUTOFF
 from tqdm import tqdm
 
+positions = []
+
+for coords_file in os.listdir("./coords"):
+    with open("./coords/"+coords_file, 'r') as file:
+        for index, line in enumerate(file):
+            parts = line.strip().split('\t')  # Split the line into parts
+            identifier = parts[0]  # Extract identifier
+            start_position = int(parts[1])  # Extract start position
+            end_position = int(parts[2])    # Extract end position
+            positions.append((identifier, start_position, end_position))
+
 
 def load_models_from_directory():
     """Gets all models in a given folder."""
@@ -18,25 +29,55 @@ def load_models_from_directory():
         models.append(model)
     return models
 
-def calculate_relative_positions(sequence_length, start_index):
+def calculate_relative_positions(identifier,sequence, start_index):
     """Generates a list of relative positions for each point in the 40-position window."""
-    if sequence_length <= SEQUENCE_CUTOFF:
-        return []
-    relative_positions = [(start_index + i + 1) / sequence_length * 100 for i in range(40)]
-    return relative_positions
+
+    real_start = None
+    real_end = None
+    
+    # Extract the start and end from the positions array
+    for pos in positions:
+        if pos[0] == identifier:
+            real_start = pos[1]
+            real_end = pos[2]
+            break
+
+    if real_start == None or real_end == None:
+        return None
+    
+
+    # Calculate the overlap
+    overlap_start = max(real_start, start_index)
+    overlap_end = min(real_end, start_index + 39)
+
+    # Check if there is an overlap
+    if overlap_end < overlap_start:
+        return 0
+
+    # Calculate lengths
+    overlap_length = overlap_end - overlap_start
+    initial_length = real_end - real_start
+
+    # Calculate the percentage of coverage
+    coverage = (overlap_length / initial_length)
+
+    return coverage
 
 
 def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, batch_size=32):
     """Predicts model output for a window in the sequence and return list of predictions."""
     all_embeddings = []
     sequence_labels = []
+
     all_relative_positions = []
+    all_values = []
+
 
     dataset_label = dataset_path.split('/')[-1]
-    dataset_label = dataset_label[:-4]
+    dataset_label = dataset_label[:-3]
     
     for i in tqdm(range(0, len(sequences), batch_size)):
-        batch_sequences = sequences[i:i+batch_size]
+        batch_sequences = list(sequences.values())[i:i+batch_size]
         for seq in batch_sequences:
             sequence_labels.append(dataset_label)
             seq_predictions = {}
@@ -54,11 +95,14 @@ def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, 
             
             avg_predictions = np.mean(list(seq_predictions.values()), axis=0)
             max_pred_index = np.argmax(avg_predictions)
+            max_value = avg_predictions[max_pred_index]
 
-            positions = calculate_relative_positions(len(seq), max_pred_index)
+            key = [key for key, value in sequences.items() if value == seq][0]
+
+            positions = calculate_relative_positions(key, sequences.get(key), max_pred_index)
             
-            if len(positions) > 0:
-                all_relative_positions.extend(positions)
+            if positions != None:
+                all_relative_positions.append(positions)
 
             max_embeddings = []
             for model in models:
@@ -68,6 +112,7 @@ def predict_window(sequences, models, dataset_path, seq_cutoff=SEQUENCE_CUTOFF, 
                 max_embeddings.extend(embedding)
                 
             all_embeddings.append(max_embeddings)
+            all_values.append(max_value)
 
-    return all_embeddings, sequence_labels, all_relative_positions
+    return all_embeddings, sequence_labels, all_relative_positions, all_values
                 
