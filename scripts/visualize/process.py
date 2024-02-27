@@ -20,6 +20,7 @@ def main():
 
     models = load_models_from_directory()
     for dataset in os.listdir(DATA_PATH):
+        print(f"Dataset: {dataset}...")
         sequences = parse_fasta(DATA_PATH + dataset)
         embeddings, labels, coverage, values = predict_window(sequences, models, dataset, SEQUENCE_CUTOFF)
         sequence_embeddings.append(embeddings)
@@ -27,7 +28,6 @@ def main():
         all_values.extend(values)
 
         unique_labels.add(dataset)
-        print(f"Dataset: {dataset}")
     
         if "bass_ntm_domain" in dataset or "fass_ntm_domain" in dataset:
             print("Mean, Std, Min, Max:")
