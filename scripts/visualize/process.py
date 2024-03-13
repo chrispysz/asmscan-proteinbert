@@ -61,8 +61,10 @@ def main():
     # hide values on x and y axis
     plt.xticks([], [])
     plt.yticks([], [])
-    plt.legend(loc='upper right')
-    plot_path = './results/tsne/' + '_'.join(os.listdir(DATA_PATH)) + '.pdf'
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles=handles[0:len(unique_labels)], labels=labels[0:len(unique_labels)], fontsize='small', loc='upper left', bbox_to_anchor=(1, 1))
+    plt.tight_layout()
+    plot_path = './results/tsne/' + '.'.join(os.listdir(DATA_PATH)) + '.pdf'
     plt.savefig(plot_path)
 
     plt.show()
