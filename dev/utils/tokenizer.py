@@ -1,4 +1,4 @@
-from dev.config import ALL_AAS, ADDITIONAL_TOKENS
+from config import ALL_AAS, ADDITIONAL_TOKENS
 
 import numpy as np
 
