@@ -1,134 +1,87 @@
-import os
-from glob import glob
-
-import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
-import tensorflow as tf
-from matplotlib import pyplot as plt, cycler
+import numpy as np
+from cycler import cycler
 
-from config import (SEP, PREDS_PATH, MODEL_NAME, ADDED_TOKENS_PER_SEQ, SEQ_CUTOFF, MODEL_PATH, MARKER_SCALE_ALL,
-                    MARKER_SCALE_POS_ONLY)
-from utils.dim_reduction import (calculate_umap, calculate_tsne)
-from utils.tokenizer import tokenize_seqs
+def load_data(path):
+    return pd.read_csv(path, sep="\t")
 
-TSNE_COMBS = [
-    # ["PB40_1z20_clu50_test_sampled10000", "NLReff_test", "bass_ntm_domain_test", "fass_ntm_domain_test",
-    #  "fass_ctm_domain_test"],
-    # ["PB40_1z20_clu50_test_sampled10000", "NLReff_test", "bass_ntm_motif_test", "fass_ntm_motif_test",
-    #  "fass_ctm_motif_test"],
-    # ["PB40_1z20_clu50_test_sampled10000", "NLReff_test", "bass_ntm_motif_test", "bass_ntm_motif_env5_test",
-    #  "bass_ntm_motif_env10_test"],
-    # ["PB40_1z20_clu50_test_sampled10000", "NLReff_test", "fass_ntm_motif_test", "fass_ntm_motif_env5_test",
-    #  "fass_ntm_motif_env10_test"],
-    # ["PB40_1z20_clu50_test_sampled10000", "NLReff_test", "het-s_ntm_domain_test", "sigma_ntm_domain_test",
-    #  "pp_ntm_domain_test"],
-    # ["het-s_ntm_domain_test", "sigma_ntm_domain_test", "pp_ntm_domain_test", "bass_other_ctm_domain_test", "bass_other_ntm_domain_test"],
-    # ["bass_01_ntm_domain_test", "bass_02_ntm_domain_test", "bass_03_ntm_domain_test", "bass_06_ntm_domain_test", "bass_fam_others_ntm_domain_test"],
-    # ["bass_01_ntm_domain_test", "bass_02_ntm_domain_test", "bass_03_ntm_domain_test", "sigma_het-s_pp_ntm_domain_test"],
-    # ["NLReff_test", "bass_ntm_domain_test", "fass_ntm_domain_test", "fass_ctm_domain_test"],
-    # ["NLReff_test", "bass_ntm_motif_test", "fass_ntm_motif_test", "fass_ctm_motif_test"],
-    # ["NLReff_test", "bass_ntm_motif_test", "bass_ntm_motif_env5_test", "bass_ntm_motif_env10_test"],
-    # ["NLReff_test", "fass_ntm_motif_test", "fass_ntm_motif_env5_test", "fass_ntm_motif_env10_test"],
-    ["NLReff_test", "het-s_ntm_domain_test", "sigma_ntm_domain_test", "pp_ntm_domain_test"],
-    #["bass_01_ntm_domain_test", "bass_02_ntm_domain_test", "bass_03_ntm_domain_test", "bass_06_ntm_domain_test", "het-s_ntm_domain_test", "sigma_ntm_domain_test", "pp_ntm_domain_test"]
-]
+def create_scatter_plot(ax, data, title, score_threshold):
+    groups = data.groupby("dataset")
+    
+    # Create a color cycle
+    color_cycle = plt.cm.rainbow(np.linspace(0, 1, len(groups)))
+    ax.set_prop_cycle(cycler(color=color_cycle))
+    
+    for name, dset in groups:
+        # Plot points above or equal to threshold
+        above_threshold = dset[dset['prob'] >= score_threshold]
+        ax.scatter(above_threshold["umap_x"], above_threshold["umap_y"], 
+                   label=f"{name} (n={len(dset)})", s=10, alpha=1.0, marker='o')
+        
+        # Plot points below threshold with 'x' marker
+        below_threshold = dset[dset['prob'] < score_threshold]
+        ax.scatter(below_threshold["umap_x"], below_threshold["umap_y"], 
+                   s=10, alpha=0.2, marker='x', color=ax._get_lines.get_next_color())
+    
+    if "LSTM" in title:
+        ax.legend(title="Datasets", bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.set_title(title)
+    if "ProteinBERT" in title:
+        ax.set_xlabel("UMAP X")
+        ax.set_ylabel("UMAP Y")
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
+def create_retention_plot(ax, data, score_threshold, title):
+    total_counts = data.groupby("dataset").size()
+    filtered_counts = data[data['prob'] >= score_threshold].groupby("dataset").size()
+    retention_percentages = (filtered_counts / total_counts * 100).round(2).fillna(0)
+    
+    bars = retention_percentages.plot(kind='bar', ax=ax, color=plt.cm.rainbow(np.linspace(0, 1, len(retention_percentages))))
+    ax.set_title(title)
+    ax.set_ylim(0, 100)
 
-def create_and_save_plot(x, y, title, filename, comb, sets_sizes, colors, marker_sizes):
-    plt.figure(figsize=(12.8, 9.6))
-    plt.rc("axes", prop_cycle=cycler(color=colors))
-    plt.axis("off")
+    if "ProteinBERT" in title:
+        ax.set_xlabel("Datasets")
+        ax.set_ylabel("Retention %")
+    else:
+        ax.set_xlabel("")
+    
+    ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-    i = 0
-    for set in comb:
-        ss = sets_sizes[set]
-        if len(marker_sizes) == 1:
-            plt.scatter(x[i:i + ss], y[i:i + ss], label=set, s=marker_sizes)
-        else:
-            plt.scatter(x[i:i + ss], y[i:i + ss], label=set, s=marker_sizes[i:i + ss])
-        i += ss
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    for i, v in enumerate(retention_percentages):
+        ax.text(i, v + 1, f'{v}%', ha='center', va='bottom', fontweight='bold')
+    
 
-    plt.legend()
-    save_path = os.path.join("plots", title, filename)
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path)
-    plt.close()
+def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
+    data_pbert = load_data(path_pbert)
+    data_lstm = load_data(path_lstm)
+   
+    fig, axes = plt.subplots(2, 2, figsize=(figsize[0]*2, figsize[1]*2))
+    fig.suptitle(f"ProteinBERT vs LSTM Comparison (Threshold: {score_threshold})", fontsize=16)
+    axes = axes.flatten()  # Flatten the 2x2 array to make indexing easier
+   
+    # Scatter plot for PBERT with all data
+    create_scatter_plot(axes[0], data_pbert, "ProteinBERT", score_threshold)
+   
+    # Scatter plot for LSTM with all data
+    create_scatter_plot(axes[1], data_lstm, "LSTM", score_threshold)
+   
+    # Retention plot for PBERT
+    create_retention_plot(axes[2], data_pbert, score_threshold, "ProteinBERT")
+   
+    # Retention plot for LSTM
+    create_retention_plot(axes[3], data_lstm, score_threshold, "LSTM")
+   
+    plt.tight_layout()
+    plt.savefig("comparison_plot.png", dpi=300)
+    return fig, axes
 
-
-def visualize(model_dir: str, layer_name: str) -> None:
-    for comb in TSNE_COMBS:
-        # Collect the most significant fragments (comb results)
-        frags = []
-        sets_sizes = {}
-        marker_sizes = []
-        for set in comb:
-            pred = pd.read_csv(os.path.join(PREDS_PATH, f'{set}.{MODEL_NAME}comb123456.csv'), sep=SEP)
-            p = pred["prob"]
-            c = pred["class"]
-            f = pred["frag"]
-
-            d = abs(c - p)
-
-            # Filter out fragments above prediction error (1.0 for all fragments)
-            valid_indices = [i for i, val in enumerate(d) if val <= 1.0]
-
-            # Use these indices to filter f and d
-            filtered_p = [p[i] for i in valid_indices]
-            filtered_f = [f[i] for i in valid_indices]
-
-            sets_sizes[set] = len(filtered_f)
-            frags.extend(filtered_f)
-            marker_sizes.extend(filtered_p)
-
-        if "PB40" in comb[0] and "NLReff" in comb[1]:
-            marker_size = [MARKER_SCALE_ALL]
-            marker_sizes = np.array(marker_sizes) * MARKER_SCALE_ALL
-            colors = ["gainsboro", "darkgray", "blue", "green", "red"]
-        elif "NLReff" in comb[0]:
-            marker_size = [1.2 * MARKER_SCALE_ALL]
-            marker_sizes = np.array(marker_sizes) * (1.2 * MARKER_SCALE_ALL)
-            colors = ["darkgray", "blue", "green", "red"]
-        else:
-            marker_size = [MARKER_SCALE_POS_ONLY]
-            marker_sizes = np.array(marker_sizes) * MARKER_SCALE_POS_ONLY
-            colors = ["blue", "green", "red", "deeppink", "orange", "cyan", "moccasin"]
-
-        print("Marker size: ", marker_size[0])
-
-        # Tokenize text
-        frags = tokenize_seqs(frags, SEQ_CUTOFF + ADDED_TOKENS_PER_SEQ)
-
-        # Collect multidimensional representations from cv models
-        mdim_rep = []
-        print("Extracting embeddings from specified layer: ", layer_name)
-        for model_filepath in glob(os.path.join(model_dir, "*")):
-            # Load model
-            model = tf.keras.models.load_model(model_filepath)
-
-            # Get output from selected layer
-            layer_out = model.get_layer(layer_name).output
-            fun = tf.keras.backend.function(model.input, layer_out)
-            mdim_rep.append(fun([frags, np.zeros((len(frags), 8943), dtype=np.int8)]))
-
-        mdim_rep = np.concatenate(mdim_rep, axis=1)
-
-        print("Calculating UMAP and t-SNE...")
-        x_umap, y_umap = calculate_umap(mdim_rep)
-        x_tsne, y_tsne = calculate_tsne(mdim_rep)
-
-        print("Saving plots...")
-        # Plot and save UMAP
-        create_and_save_plot(x_umap, y_umap, "umap", f'scaled.{".".join(comb)}.pdf', comb, sets_sizes, colors,
-                             marker_sizes)
-        create_and_save_plot(x_umap, y_umap, "umap", f'{".".join(comb)}.pdf', comb, sets_sizes, colors, marker_size)
-
-        # Plot and save t-SNE
-        create_and_save_plot(x_tsne, y_tsne, "tsne", f'scaled.{".".join(comb)}.pdf', comb, sets_sizes, colors,
-                             marker_sizes)
-        create_and_save_plot(x_tsne, y_tsne, "tsne", f'{".".join(comb)}.pdf', comb, sets_sizes, colors, marker_size)
-
-        print("Finished")
-
-
-if __name__ == "__main__":
-    visualize(MODEL_PATH, "dropout")
+# Example usage:
+create_plot(path_lstm="dev/results/bilstm_umap_domains.csv",
+            path_pbert="dev/results/NLReff_test.bass_ntm_domain_test.fass_ntm_domain_test.fass_ctm_domain_test.csga2203_nr40.csv",
+            score_threshold=0.5)

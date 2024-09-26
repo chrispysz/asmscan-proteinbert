@@ -2,9 +2,9 @@ import umap
 from sklearn.manifold import TSNE
 
 
-def calculate_umap(data):
+def calculate_umap(data, neighbors=5):
     print('Calculating 2dim UMAP of ' + str(len(data)) + ' elements...')
-    result = umap.UMAP(n_neighbors=5).fit_transform(data)
+    result = umap.UMAP(n_neighbors=neighbors).fit_transform(data)
     return result[:, 0], result[:, 1]
 
 
