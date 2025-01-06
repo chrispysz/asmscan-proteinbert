@@ -84,32 +84,37 @@ def predict(model_dir: str) -> None:
 
 
 def save_model_prediction(model_name: str, fs: FragmentedSet, fragments_prediction) -> None:
-    indexes = to_sequence_prediction(fs, fragments_prediction)
+    indexes, max_indexes, max_indexes_pred = to_sequence_prediction(fs, fragments_prediction)
     save_prediction(
         os.path.join(PREDS_PATH, "coords", f"{fs.set_name}.{model_name}.csv"),
-        fs, CUTOFF_VALUE, indexes
+        fs, CUTOFF_VALUE, indexes, max_indexes, max_indexes_pred
     )
 
 
-def to_sequence_prediction(fs: FragmentedSet, fragments_prediction) \
-        -> List[str]:
+def to_sequence_prediction(fs: FragmentedSet, fragments_prediction):
     indexes = []
+    max_indexes = []
+    max_indexes_pred = []
 
     p = 0
     for ss in fs.scopes:
         scoped_frags_pred = fragments_prediction[p:p + ss]
         pred_indexes = np.where(scoped_frags_pred >= CUTOFF_VALUE)
+        max_indexes.append(np.argmax(scoped_frags_pred))
+        max_indexes_pred.append(scoped_frags_pred[max_indexes[-1]])
         indexes.append(pred_indexes[0])
         p += ss
 
-    return indexes
+    return indexes, max_indexes, max_indexes_pred
 
 
-def save_prediction(filepath: str, fs: FragmentedSet, cutoff, indexes) -> None:
+def save_prediction(filepath: str, fs: FragmentedSet, cutoff, indexes, max_indexes, max_indexes_pred) -> None:
     df = pd.DataFrame({
         "id": fs.ids,
         "cutoff": cutoff,
-        "indexes": indexes
+        "indexes": indexes,
+        "max_indexes": max_indexes,
+        "max_indexes_pred": max_indexes_pred
     })
     df.to_csv(makedir(filepath), sep="\t", index=False)
 

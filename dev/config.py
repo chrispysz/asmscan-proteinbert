@@ -3,15 +3,15 @@ import os
 MODEL_NAME = "ProteinBERT"
 ADDED_TOKENS_PER_SEQ = 2
 SEQ_CUTOFF = 40
-MODEL_PATH = './dev/models'
-DATA_PATH = './dev/data(test)'
+MODEL_PATH = './models'
+DATA_PATH = './data(test)'
 ALL_AAS = 'ACDEFGHIKLMNPQRSTUVWXY'
 ADDITIONAL_TOKENS = ['<OTHER>', '<START>', '<END>', '<PAD>']
 
 NEG_TST_PATH = os.path.join(DATA_PATH, 'test_sets', "negative")
 POS_TST_PATH = os.path.join(DATA_PATH, 'test_sets', "positive")
 COV_POS_TST_PATH = os.path.join(DATA_PATH, 'test_sets', "coords")
-PREDS_PATH = "./dev/results"
+PREDS_PATH = "./results"
 SEP = "\t"
 
 MARKER_SCALE_ALL = 4
