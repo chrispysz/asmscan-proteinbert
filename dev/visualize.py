@@ -81,16 +81,13 @@ def create_retention_plot(ax, data, score_threshold, color_dict, y_max):
     filtered_counts = data[data['prob'] >= score_threshold].groupby("dataset").size()
     retention_percentages = (filtered_counts / total_counts * 100).round(0).fillna(0).astype(int)
 
-    # Prepare the data for plotting
     retention_df = retention_percentages.reset_index()
     retention_df.columns = ['dataset', 'retention']
     retention_df = retention_df.sort_values(by='retention', ascending=False)
 
-    # Create the bar plot
     sns.barplot(x='dataset', y='retention', data=retention_df,
                 ax=ax, palette=[color_dict[name] for name in retention_df['dataset']])
 
-    # Adjust plot aesthetics
     ax.set_ylim(0, y_max)
     ax.set_xlabel("Datasets")
     ax.set_ylabel("Retention (%)")
@@ -126,14 +123,12 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
     data_pbert = load_data(path_pbert)
     data_lstm = load_data(path_lstm)
 
-    # Validate required columns
     required_columns = {'umap_x', 'umap_y', 'prob', 'dataset'}
     if not required_columns.issubset(data_pbert.columns):
         raise ValueError("ProteinBERT data must contain 'umap_x', 'umap_y', 'prob', and 'dataset' columns.")
     if not required_columns.issubset(data_lstm.columns):
         raise ValueError("LSTM data must contain 'umap_x', 'umap_y', 'prob', and 'dataset' columns.")
 
-    # Create figure and axes
     fig, axes = plt.subplots(2, 2, figsize=(figsize[0] * 2, figsize[1] * 2))
     axes = axes.flatten()
 
@@ -146,24 +141,11 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
         palette = sns.color_palette('hls', n_colors=num_datasets)
     color_dict = dict(zip(all_datasets, palette))
 
-    # Retention plot for ProteinBERT
-    # First, get maximum retention percentage across both datasets
-    total_counts_pbert = data_pbert.groupby("dataset").size()
-    filtered_counts_pbert = data_pbert[data_pbert['prob'] >= score_threshold].groupby("dataset").size()
-    retention_pbert = (filtered_counts_pbert / total_counts_pbert * 100).round(0).fillna(0).astype(int)
-
-    total_counts_lstm = data_lstm.groupby("dataset").size()
-    filtered_counts_lstm = data_lstm[data_lstm['prob'] >= score_threshold].groupby("dataset").size()
-    retention_lstm = (filtered_counts_lstm / total_counts_lstm * 100).round(0).fillna(0).astype(int)
-
-    max_retention = max(retention_pbert.max(), retention_lstm.max())
-    #y_max = (max_retention // 10 + 1) * 10  # Round up to the nearest 10
     y_max=105
 
     pbert_order = create_retention_plot(axes[2], data_pbert, score_threshold,
                                         color_dict, y_max)
 
-    # Retention plot for LSTM
     lstm_order = create_retention_plot(axes[3], data_lstm, score_threshold,
                                        color_dict, y_max)
 
@@ -191,7 +173,6 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
     axes[3].text(0.88, 0.1, 'NLReff',
                  transform=axes[3].transAxes, fontsize=18, ha='center')
 
-    # Add labels A, B, C, D to the subplots
     subplot_labels = ['A', 'B', 'C', 'D']
     for label, ax in zip(subplot_labels, axes):
         ax.text(0.00, 1.1, label, transform=ax.transAxes, fontsize=30,
@@ -200,13 +181,11 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.22, hspace=0.22, wspace=0.22)
 
-    # Save the figure
-    plt.savefig("comparison_plot.pdf", bbox_inches='tight')
+    plt.savefig("cf_umap_domains.pdf", bbox_inches='tight')
     plt.show()
     return fig, axes
 
 
-# Example usage:
 create_plot(path_lstm="./results/results/bilstm_umap_domains.csv",
             path_pbert="./results/results/pbert_umap_domains.csv",
             score_threshold=0.5)
