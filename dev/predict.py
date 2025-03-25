@@ -47,14 +47,12 @@ class FragmentedSet:
 
 
 def predict(model_dir: str) -> None:
-    # Save modelcomb name to config
     cv_models_filepaths = glob.glob(os.path.join(model_dir, "*"))
 
     comb_model_name = MODEL_NAME + "comb" + "".join(str(i) for i in range(1, len(cv_models_filepaths) + 1))
 
     for set_filepath in TST_SETS_FILEPATHS:
         print(set_filepath)
-        # Fragment protein sequences
         fs = FragmentedSet(set_filepath, SEQ_CUTOFF)
 
         # Tokenize text
@@ -62,14 +60,13 @@ def predict(model_dir: str) -> None:
 
         y_pred = []
         for i, model_filepath in enumerate(cv_models_filepaths):
-            # Load model
             model = tf.keras.models.load_model(model_filepath)
 
             # Predict
             preds = model.predict(
                 [x_tst, np.zeros((len(fs.frags), 8943), dtype=np.int8)], verbose=0)
 
-            y_pred.append(preds.flatten())  # [[1], [1], ..., [1]] -> [1, 1, ..., 1]
+            y_pred.append(preds.flatten())
 
             # Save cv results
             model_name = os.path.basename(model_filepath)

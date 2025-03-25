@@ -48,17 +48,14 @@ class FragmentedSet:
 
 
 def predict(model_dir: str) -> None:
-    # Save modelcomb name to config
     cv_models_filepaths = glob.glob(os.path.join(model_dir, "*"))
 
     comb_model_name = MODEL_NAME + "comb" + "".join(str(i) for i in range(1, len(cv_models_filepaths) + 1))
 
     for set_filepath in COV_TST_SETS_FILEPATHS_PAIRS:
         print(set_filepath[0])
-        # Fragment protein sequences
         fs = FragmentedSet(set_filepath[0], SEQ_CUTOFF)
 
-        # Tokenize text
         x_tst = tokenize_seqs(fs.frags, SEQ_CUTOFF + ADDED_TOKENS_PER_SEQ)
 
         y_pred = []
@@ -70,7 +67,7 @@ def predict(model_dir: str) -> None:
             preds = model.predict(
                 [x_tst, np.zeros((len(fs.frags), 8943), dtype=np.int8)], verbose=0)
 
-            y_pred.append(preds.flatten())  # [[1], [1], ..., [1]] -> [1, 1, ..., 1]
+            y_pred.append(preds.flatten())
 
             # Save cv results
             model_name = os.path.basename(model_filepath)

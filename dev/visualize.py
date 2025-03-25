@@ -141,7 +141,7 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
         palette = sns.color_palette('hls', n_colors=num_datasets)
     color_dict = dict(zip(all_datasets, palette))
 
-    y_max=105
+    y_max = 105
 
     pbert_order = create_retention_plot(axes[2], data_pbert, score_threshold,
                                         color_dict, y_max)
@@ -166,12 +166,7 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
                           linestyle='', markersize=5) for dataset in pbert_order]
     fig.legend(handles, labels, loc='lower center', ncol=4,
                bbox_to_anchor=(0.5, 0.02), bbox_transform=fig.transFigure, title="Datasets", title_fontsize=18,
-               fontsize=18)
-
-    axes[2].text(0.88, 0.1, 'NLReff',
-            transform=axes[2].transAxes, fontsize=18, ha='center')
-    axes[3].text(0.88, 0.1, 'NLReff',
-                 transform=axes[3].transAxes, fontsize=18, ha='center')
+               fontsize=18, markerscale=2.5)
 
     subplot_labels = ['A', 'B', 'C', 'D']
     for label, ax in zip(subplot_labels, axes):
@@ -181,11 +176,11 @@ def create_plot(path_pbert, path_lstm, score_threshold=0.5, figsize=(8, 6)):
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.22, hspace=0.22, wspace=0.22)
 
-    plt.savefig("cf_umap_domains.pdf", bbox_inches='tight')
+    plt.savefig("cf_umap_families.pdf", bbox_inches='tight')
     plt.show()
     return fig, axes
 
 
-create_plot(path_lstm="./results/results/bilstm_umap_domains.csv",
-            path_pbert="./results/results/pbert_umap_domains.csv",
+create_plot(path_lstm="./results/results/bilstm_umap_families.csv",
+            path_pbert="./results/results/pbert_umap_families.csv",
             score_threshold=0.5)
